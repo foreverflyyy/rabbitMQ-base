@@ -1,73 +1,47 @@
-const {connectToRabbitMQ} = require("../rabbitMq");
+const amqp = require("amqplib");
 
-let rabbitConnection;
-let exchangeName = "users";
-let exchangeType = "fanout";
-const queueName = 'user-registration';
+// let exchangeName = "users";
+// let exchangeType = "fanout";
 (async () => {
-    rabbitConnection = await connectToRabbitMQ();
-    console.log('Successfully connected to RabbitMQ server!');
+    const rabbitConnection = await amqp.connect({
+        protocol: 'amqp',
+        hostname: '94.228.113.82',
+        port: 5672,
+        username: 'root',
+        password: 'root',
+        vhost: 'sending_letter'
+    });
+
+    const mainQueueName = 'send-letter';
+
+    const exchangeName = "letters";
+    const exchangeType = "x-delayed-message";
+    // const exchangeName = "users";
+    // const exchangeType = "fanout";
+
+    const recipientName = "delivery";
 
     const channel = await rabbitConnection.createChannel();
+    await channel.assertQueue(mainQueueName, { exclusive: false });
 
-    // Создаёт временную очередь и делает её эксклюзивной для этого клиента
-    await channel.assertExchange(exchangeName, exchangeType);
-    const assertQueueResult = await channel.assertQueue('', { exclusive: true });
-    await channel.bindQueue(assertQueueResult.queue, exchangeName, '');
+    await channel.assertExchange(exchangeName, exchangeType, { durable: true });
+    const { queue } = await channel.assertQueue(recipientName, { exclusive: false });
+    await channel.bindQueue(queue, exchangeName, recipientName);
 
-    await channel.consume(assertQueueResult.queue, async (message) => {
-        if (!message) {
-            console.error('Consumer cancelled by server!');
-            return;
-        }
+    let count1 = 0;
+    let count2 = 0;
+    await channel.consume(mainQueueName, async (message) => {
+        console.log("сообщение1: ", count1++)
+    }, { noAck: true });
 
-        const data = JSON.parse(message.content.toString());
-        console.table(data);
-
-        // TODO send an email using the data
-
-
-        console.log('Email1 sent successfully!');
+    await channel.consume(queue, async (message) => {
+        console.log("сообщение2: ", count2++)
     }, { noAck: true });
 
     process.once("SIGINT", async () => {
         await channel.close();
         await rabbitConnection.close();
     });
-})();
 
-(async () => {
-    rabbitConnection = await connectToRabbitMQ();
-    console.log('Successfully connected to RabbitMQ server!');
-
-    const channel = await rabbitConnection.createChannel();
-
-    // Создаёт временную очередь и делает её эксклюзивной для этого клиента
-    await channel.assertQueue(queueName, { exclusive: true });
-
-    await channel.consume(queueName, async (message) => {
-        if (!message) {
-            console.error('Consumer cancelled by server!');
-            return;
-        }
-
-        const data = JSON.parse(message.content.toString());
-        console.table(data);
-
-        // TODO send an email using the data
-
-
-        console.log('Email2 sent successfully!');
-        channel.ack(message);
-
-        // если нужно отменить получение сообщения,
-        // чтобы оно могло быть использовано другими приложениями, прослушивающими очередь
-        // второй параметр для указания, что мы хотим поставить сообщение повторно в очередь
-        // channel.reject(message, true);
-    });
-
-    process.once("SIGINT", async () => {
-        await channel.close();
-        await rabbitConnection.close();
-    });
+    console.log("Ready")
 })();

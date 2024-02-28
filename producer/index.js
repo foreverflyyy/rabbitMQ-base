@@ -1,51 +1,50 @@
-const Express = require("express");
-const {connectToRabbitMQ} = require("../rabbitMq");
+const amqp = require("amqplib");
+module.exports = async (req) => {
+    const {data} = req.body;
 
-const app = Express();
+    const messageData = {hi: "hello"}
+    const messageDataAsString = JSON.stringify({letter});
 
-let rabbitConnection;
-const PORT = process.env.PORT ?? 8000;
-const HOST = process.env.HOST ?? "localhost";
-
-app.use(Express.urlencoded({ extended: true }));
-app.use(Express.json());
-
-app.get('/', async (req, res) => {
-    const QUEUE_NAME = 'user-registration';
-    const messageData = {
-        fullName: "name",
-        emailAddress: "email",
-        confirmationCode: Math.floor(Math.random() * 900000) + 100000,
-    };
-    const messageDataAsString = JSON.stringify(messageData);
-
-    const channel = await rabbitConnection.createChannel();
-    channel.sendToQueue(QUEUE_NAME, Buffer.from(messageDataAsString));
-
-    return res.json({message: 'User registered successfully'});
-});
-
-app.get('/withExchange', async (req, res) => {
-    const exchangeName = 'users';
-    const messageData = {
-        fullName: "name",
-        emailAddress: "email",
-        confirmationCode: Math.floor(Math.random() * 900000) + 100000,
-    };
-    const messageDataAsString = JSON.stringify(messageData);
-
-    const channel = await rabbitConnection.createChannel();
-
-    await channel.assertExchange(exchangeName, 'fanout', {
-        durable: true,
+    const rabbitConnection = await amqp.connect({
+        protocol: 'amqp',
+        hostname: '94.228.113.82',
+        port: 5672,
+        username: 'root',
+        password: 'root',
+        vhost: 'sending_letter',
     });
 
-    channel.publish(exchangeName, '', Buffer.from(messageDataAsString));
+    const mainQueueName = 'send-letter';
 
-    return res.json({ message: 'User registered successfully' });
-});
+    const exchangeName = "letters";
+    const exchangeType = "x-delayed-message";
+    // const exchangeName = "users";
+    // const exchangeType = "fanout";
 
-app.listen(PORT, async () => {
-    rabbitConnection = await connectToRabbitMQ();
-    console.log(`Application started on URL ${HOST}:${PORT} 🎉`);
-});
+    const recipientName = "delivery";
+
+    const channel = await rabbitConnection.createChannel();
+    await channel.assertQueue(mainQueueName);
+    await channel.bindQueue(recipientName, exchangeName ,recipientName);
+
+    await channel.assertExchange(exchangeName, exchangeType, {
+        arguments: {'x-delayed-type':  "direct"}
+    });
+
+    for (let i = 0; i < 3; i++) {
+        await channel.sendToQueue(mainQueueName, Buffer.from(messageDataAsString));
+        await channel.publish(
+            exchangeName,
+            recipientName,
+            Buffer.from(messageDataAsString),
+            {headers: {"x-delay": 1000}}
+        );
+    }
+
+    return {
+        success: true,
+        data: data
+    }
+}
+
+const letter = ""
