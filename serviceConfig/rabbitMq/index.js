@@ -52,8 +52,8 @@ service.sendMessageToExchange = async ({
     routerKey,
     message,
     exchangeType = "direct",
-    createOptions = {},
-    sendOptions = {}
+    assertOptions = {},
+    publishOptions = {}
 }) => {
     if(!channel || (exchangeName !== "" && !exchangeName) ||
         !exchangeType || (routerKey !== "" && !routerKey))
@@ -63,7 +63,7 @@ service.sendMessageToExchange = async ({
 
     if(!service.exchanges[exchangeName]) {
         service.exchanges[exchangeName] = [];
-        await channel.assertExchange(exchangeName, exchangeType, createOptions);
+        await channel.assertExchange(exchangeName, exchangeType, assertOptions);
     }
 
     // Привязка очереди к маршрутизатору
@@ -75,7 +75,7 @@ service.sendMessageToExchange = async ({
     }
 
     const dataMessage = Buffer.from(JSON.stringify(message));
-    await channel.publish(exchangeName, routerKey, dataMessage, sendOptions);
+    await channel.publish(exchangeName, routerKey, dataMessage, publishOptions);
 }
 
 service.initBaseVhosts = (baseVhosts= []) => {

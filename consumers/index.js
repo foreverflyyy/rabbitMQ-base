@@ -25,7 +25,7 @@ const consumers = {
                     "send-delayed-letter": {
                         options: { durable: true, exclusive: false, noAck: false },
                         callback: require("./sending_letter"),
-                        params: { deleteFromRedis: true }
+                        params: {}
                     }
                 }
             }
