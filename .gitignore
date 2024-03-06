@@ -1,3 +1,4 @@
-/node_modules
+node_modules
+rabbitmq
+.idea
 package-lock.json
-/.idea

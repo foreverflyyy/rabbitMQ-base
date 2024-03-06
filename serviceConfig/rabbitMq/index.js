@@ -78,6 +78,18 @@ service.sendMessageToExchange = async ({
     await channel.publish(exchangeName, routerKey, dataMessage, sendOptions);
 }
 
+service.initBaseVhosts = (baseVhosts= []) => {
+    try {
+        (async () => {
+            for(const vhost of baseVhosts) {
+                await service.getAndCreateChannel(vhost);
+            }
+        })();
+    } catch(err) {
+        throw new Error(`Не удалось подключиться по baseVhosts, возможно указан vhost который не существует. ${err}`);
+    }
+}
+
 process.once("SIGINT", async () => {
     for(const {connection, channel} of Object.values(service.vhosts)) {
         channel.close();
