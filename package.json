@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "nodemon index.js",
-    "start-consumer": "nodemon consumers/index.js"
+    "start-consumer": "nodemon producers/index.js"
   },
   "author": "at",
   "license": "ISC",

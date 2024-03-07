@@ -1,4 +1,4 @@
 node_modules
-rabbitmq
+consumers
 .idea
 package-lock.json
